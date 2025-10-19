@@ -16,4 +16,15 @@
 3. Publish beta builds (`0.1.0b1`, `0.1.0b2`, …) until the API and documentation feel solid.
 4. Cut the stable `0.1.0` release when no further blocking issues remain.
 
+## Trusted Publisher Configuration
+
+1. In PyPI, add a **pending trusted publisher** for:
+   - Project: `magic-link`
+   - Owner: `h8v6`
+   - Repository: `magic-link`
+   - Workflow: `release.yml`
+   - Environment: `pypi`
+2. In GitHub (repo settings → Secrets and variables → Actions → Environments) create an environment named `pypi` (optional reviewers can be configured there).
+3. No API token is required—the workflow uses GitHub’s OIDC token to authenticate with PyPI once the trusted publisher is in place.
+
 For test uploads, create a pre-release tag and use TestPyPI by temporarily adjusting the workflow or running `python -m build && twine upload` locally.
