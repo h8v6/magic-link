@@ -59,3 +59,26 @@ def test_verify_invalid_signature() -> None:
             issued_at=issued.issued_at,
             expires_at=issued.expires_at,
         )
+
+
+def test_verify_with_mismatched_subject() -> None:
+    engine = TokenEngine(secret_key="secret", token_length=16, ttl_seconds=60)
+    issued = engine.issue(subject="user@example.com", now=_utcnow())
+    with pytest.raises(TokenInvalidSignatureError):
+        engine.verify(
+            issued.token,
+            subject="attacker@example.com",
+            signature=issued.signature,
+            issued_at=issued.issued_at,
+            expires_at=issued.expires_at,
+        )
+
+
+def test_invalid_token_length_raises() -> None:
+    with pytest.raises(ValueError):
+        TokenEngine(secret_key="secret", token_length=0)
+
+
+def test_invalid_ttl_raises() -> None:
+    with pytest.raises(ValueError):
+        TokenEngine(secret_key="secret", ttl_seconds=0)

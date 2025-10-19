@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Dict
 
@@ -27,9 +28,9 @@ def _utcnow() -> datetime:
 def _make_record(subject: str = "user@example.com") -> TokenRecord:
     issued = _utcnow()
     return TokenRecord(
-        token_hash="hash",
+        token_hash=secrets.token_hex(16),
         subject=subject,
-        signature="signature",
+        signature=secrets.token_hex(16),
         issued_at=issued,
         expires_at=issued + timedelta(minutes=15),
     )
@@ -127,13 +128,13 @@ def test_in_memory_storage_roundtrip() -> None:
     storage = InMemoryStorage()
     record = _make_record()
     storage.create_token(record)
-    fetched = storage.get_token("hash")
+    fetched = storage.get_token(record.token_hash)
     assert fetched == record
 
-    consumed = storage.consume_token("hash")
+    consumed = storage.consume_token(record.token_hash)
     assert consumed is not None
     assert consumed.consumed_at is not None
-    assert storage.get_token("hash") is None
+    assert storage.get_token(record.token_hash) is None
 
     rule = RateLimitRule(identifier="user@example.com", window_seconds=60, max_requests=2)
     assert storage.enforce_rate_limit(rule, at=_utcnow())
