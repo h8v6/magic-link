@@ -1,0 +1,17 @@
+# Project-specific ignores
+prd.md
+tasks/
+
+# Environment and tooling artifacts
+.env
+.env.*
+.python-version
+.pytest_cache/
+.mypy_cache/
+__pycache__/
+dist/
+build/
+
+# Editor/OS noise
+.DS_Store
+Thumbs.db
