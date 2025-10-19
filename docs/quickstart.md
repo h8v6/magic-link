@@ -24,46 +24,39 @@ MAGIC_LINK_SMTP_USERNAME=apikey
 MAGIC_LINK_SMTP_PASSWORD=super-secret
 ```
 
-## 3. Prepare Database (Optional)
+## 3. Prepare Database Schema (Optional)
 
-If you plan to use the SQLAlchemy backend, import the models into your migration workflow:
+If you use the SQLAlchemy backend, import the models into your migration workflow. Example Alembic snippet:
 
 ```python
-from magic_link.storage.sqlalchemy import Base
-
-# In your Alembic env.py
+# alembic/env.py
+from magic_link.storage.sqlalchemy import Base as MagicLinkBase
 from myapp.database import engine
-Base.metadata.create_all(engine)
+
+# within run_migrations_online()
+with connectable.connect() as connection:
+    context.configure(connection=connection, target_metadata=[MagicLinkBase.metadata, myapp_base])
+    context.run_migrations()
 ```
+
+Generate an Alembic revision that includes `magic_link` tables and apply it like any other migration.
 
 ## 4. Build a Minimal FastAPI App
 
 ```python
-import os
-
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
-from magic_link.config import load_settings, reset_settings_cache
-from magic_link.interfaces import MagicLinkMessage, RateLimitRule, TokenRecord
-from redis import Redis
-
+from magic_link import MagicLinkConfig, MagicLinkService
+from magic_link.interfaces import MagicLinkMessage
 from magic_link.mailer import create_mailer
 from magic_link.storage.redis import RedisStorage
-from magic_link.token_engine import TokenEngine
 
-reset_settings_cache()
-settings = load_settings()
+config = MagicLinkConfig.from_env()
 app = FastAPI()
-engine = TokenEngine(
-    secret_key=settings.secret_key,
-    token_length=settings.token_length,
-    ttl_seconds=settings.token_ttl_seconds,
-)
-client = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-storage = RedisStorage(client)
-mailer = create_mailer(settings)
-
+storage = RedisStorage.from_url("redis://localhost:6379/0")  # create helper in your app
+service = MagicLinkService(config=config, storage=storage)
+mailer = create_mailer(config)
 
 @app.post("/magic-link")
 async def request_link(payload: dict[str, str]) -> JSONResponse:
@@ -71,29 +64,12 @@ async def request_link(payload: dict[str, str]) -> JSONResponse:
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
 
-    allowed = storage.enforce_rate_limit(
-        RateLimitRule(
-            identifier=email,
-            window_seconds=settings.rate_limit_window_seconds,
-            max_requests=settings.rate_limit_max_requests,
-        )
-    )
-    if not allowed:
-        raise HTTPException(status_code=429, detail="Too many requests")
+    service.enforce_rate_limit(email)
 
-    issued = engine.issue(subject=email)
-    storage.create_token(
-        TokenRecord(
-            token_hash=issued.token_hash,
-            subject=issued.subject,
-            signature=issued.signature,
-            issued_at=issued.issued_at,
-            expires_at=issued.expires_at,
-        )
-    )
+    issued = service.issue_token(subject=email)
+    base = config.base_url or "http://localhost:8000"
+    link = f"{base.rstrip('/')}{config.login_path}?token={issued.token}"
 
-    base = settings.base_url or "http://localhost:8000"
-    link = f"{base.rstrip('/')}{settings.login_path}?token={issued.token}"
     mailer.send_magic_link(
         MagicLinkMessage(
             recipient=email,
@@ -105,29 +81,17 @@ async def request_link(payload: dict[str, str]) -> JSONResponse:
 
     return JSONResponse({"status": "sent"})
 
-
-def verify_token(token: str) -> TokenRecord:
-    record = storage.get_token(engine.hash_token(token))
-    if record is None:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    engine.verify(
-        token,
-        subject=record.subject,
-        signature=record.signature,
-        issued_at=record.issued_at,
-        expires_at=record.expires_at,
-    )
-    storage.consume_token(record.token_hash)
-    return record
-
-
 @app.post("/magic-link/verify")
 async def verify_magic_link(payload: dict[str, str]) -> JSONResponse:
     token = payload.get("token")
     if not token:
         raise HTTPException(status_code=400, detail="Token is required")
-    record = verify_token(token)
-    return JSONResponse({"status": "verified", "subject": record.subject})
+
+    result = service.verify_token(token)
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.error or "Invalid token")
+
+    return JSONResponse({"status": "verified", "subject": result.subject})
 ```
 
 Run the app:
@@ -137,3 +101,9 @@ uvicorn main:app --reload
 ```
 
 Visit `/magic-link` to request a link and `/magic-link/verify` to consume it.
+
+## 5. Next Steps
+
+- Replace Redis with the SQLAlchemy backend or your custom storage implementation.
+- Hook `MagicLinkMessage` into your templating pipeline to customize email content.
+- Review additional recipes in `docs/recipes/` for Flask and other frameworks.
