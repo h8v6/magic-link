@@ -2,6 +2,33 @@
 
 A modular, framework-agnostic engine for passwordless authentication using secure magic links.
 
+## Motivation
+
+Engineering teams often reinvent passwordless login flows, which results in fragile security and duplicated effort. `magic_link` delivers a hardened token engine with clear integration points so teams can wire magic-link authentication into their existing stack in minutes while retaining full control over infrastructure, migrations, and UX.
+
+## Who It’s For
+
+- Backend-heavy Python teams building APIs or web apps with FastAPI, Flask, Django, or similar frameworks.
+- Developers who want passwordless auth without surrendering their logging, database, or email delivery stack to a hosted service.
+- Security-conscious teams that prefer explicit configuration and zero hidden side effects.
+
+## What’s In Scope
+
+- Token generation, signing, hashing, and verification with safe defaults.
+- Extensible storage and mailer interfaces plus maintained implementations for in-memory, SQLAlchemy, Redis, and SMTP.
+- Tooling to help developers configure and test their setup quickly (`magic-link generate-config`, `magic-link test-email`).
+
+## What’s Out of Scope
+
+- User profile management, frontend components, or hosted dashboards.
+- Automatic migrations or schema changes in your database.
+- Support for OAuth, social login, or password-based flows.
+- Multi-tenant orchestration or session management.
+
+## Technology Agnosticism
+
+Everything is opt-in by design. The core package ships with almost no third-party dependencies and treats storage, mail, and CLI features as extras. You choose which integrations to install, wire them explicitly, and continue using your preferred tooling without vendor lock-in.
+
 ## Key Features
 
 - Minimal core with optional extras for storage (SQLAlchemy, Redis) and email delivery (SMTP)
