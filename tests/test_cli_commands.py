@@ -1,35 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import List
 
 import pytest
 from click.testing import CliRunner
 
 from magic_link.cli import cli
+from magic_link.config import MagicLinkConfig, RateLimitConfig, SMTPConfig, TokenConfig
 
 
-@dataclass
-class StubSettings:
-    secret_key: str = "cli-secret"
-    token_ttl_seconds: int = 900
-    token_length: int = 32
-    rate_limit_window_seconds: int = 60
-    rate_limit_max_requests: int = 5
-    issuer: str | None = None
-    base_url: str | None = "https://example.com"
-    login_path: str = "/auth/magic-link"
-    debug: bool = False
-    storage_backend: str = "memory"
-    mailer_backend: str = "smtp"
-    from_address: str | None = "sender@example.com"
-    smtp_host: str = "localhost"
-    smtp_port: int = 587
-    smtp_username: str | None = None
-    smtp_password: str | None = None
-    smtp_use_tls: bool = True
-    smtp_use_ssl: bool = False
-    smtp_timeout: float | None = None
+def _stub_config() -> MagicLinkConfig:
+    return MagicLinkConfig(
+        secret_key="cli-secret",
+        token=TokenConfig(ttl_seconds=900, length=32),
+        rate_limit=RateLimitConfig(window_seconds=60, max_requests=5),
+        base_url="https://example.com",
+        from_address="sender@example.com",
+        smtp=SMTPConfig(host="localhost", port=587, use_tls=True, use_ssl=False),
+    )
 
 
 class StubMailer:
@@ -65,7 +53,7 @@ def test_test_email_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MAGIC_LINK_FROM_ADDRESS", "sender@example.com")
     monkeypatch.setenv("MAGIC_LINK_BASE_URL", "https://example.com")
 
-    monkeypatch.setattr("magic_link.cli.test_email.load_settings", lambda: StubSettings())
+    monkeypatch.setattr("magic_link.cli.test_email.load_settings", _stub_config)
     monkeypatch.setattr("magic_link.cli.test_email.create_mailer", lambda settings, backend=None: stub_mailer)
 
     result = runner.invoke(cli, ["test-email", "user@example.com"])
@@ -89,7 +77,7 @@ def test_test_email_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
         return _Mailer()
 
-    monkeypatch.setattr("magic_link.cli.test_email.load_settings", lambda: StubSettings())
+    monkeypatch.setattr("magic_link.cli.test_email.load_settings", _stub_config)
     monkeypatch.setattr("magic_link.cli.test_email.create_mailer", failing_mailer)
 
     result = runner.invoke(cli, ["test-email", "user@example.com"])

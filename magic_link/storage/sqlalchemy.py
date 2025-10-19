@@ -107,6 +107,8 @@ class SQLAlchemyStorage(StorageInterface):
             result = session.execute(stmt).scalar_one_or_none()
             if result is None:
                 return None
+            if result.consumed_at is not None:
+                return None
             result.consumed_at = consumed_time
             session.add(result)
             return replace(self._to_record(result), consumed_at=consumed_time)

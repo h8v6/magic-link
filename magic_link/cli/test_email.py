@@ -31,7 +31,7 @@ def send_test_email(recipient: str, backend: str | None, link: str | None) -> No
     base_url = settings.base_url or "http://localhost"
     login_path = settings.login_path or "/auth/magic-link"
     sample_link = link or f"{base_url.rstrip('/')}{login_path}?token={token}"
-    expires_at = _utcnow() + timedelta(seconds=settings.token_ttl_seconds)
+    expires_at = _utcnow() + timedelta(seconds=settings.token.ttl_seconds)
 
     message = MagicLinkMessage(
         recipient=recipient,
