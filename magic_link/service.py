@@ -22,7 +22,8 @@ class VerificationResult:
 
     success: bool
     subject: Optional[str] = None
-    error: Optional[str] = None
+    reason: Optional[str] = None
+    detail: Optional[str] = None
 
 
 class MagicLinkService:
@@ -83,10 +84,10 @@ class MagicLinkService:
         token_hash = self._token_engine.hash_token(token)
         consumed = self._storage.consume_token(token_hash, consumed_at=now)
         if consumed is None:
-            return VerificationResult(success=False, error="not_found")
+            return VerificationResult(success=False, reason="not_found")
 
         if expected_subject is not None and consumed.subject != expected_subject:
-            return VerificationResult(success=False, subject=consumed.subject, error="subject_mismatch")
+            return VerificationResult(success=False, subject=consumed.subject, reason="subject_mismatch")
 
         try:
             self._token_engine.verify(
@@ -97,12 +98,12 @@ class MagicLinkService:
                 expires_at=consumed.expires_at,
                 now=now,
             )
-        except TokenExpiredError:
-            return VerificationResult(success=False, subject=consumed.subject, error="expired")
-        except TokenInvalidSignatureError:
-            return VerificationResult(success=False, subject=consumed.subject, error="invalid_signature")
+        except TokenExpiredError as exc:
+            return VerificationResult(success=False, subject=consumed.subject, reason="expired", detail=str(exc))
+        except TokenInvalidSignatureError as exc:
+            return VerificationResult(success=False, subject=consumed.subject, reason="invalid_signature", detail=str(exc))
 
-        return VerificationResult(success=True, subject=consumed.subject)
+        return VerificationResult(success=True, subject=consumed.subject, reason=None)
 
     def enforce_rate_limit(self, identifier: str, *, now: Optional[datetime] = None) -> None:
         """Raise if rate limit has been exceeded for an identifier."""

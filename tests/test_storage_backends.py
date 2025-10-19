@@ -6,6 +6,7 @@ from typing import Dict
 
 import pytest
 
+from magic_link.errors import StorageError
 from magic_link.interfaces import RateLimitRule, TokenRecord
 from magic_link.storage.in_memory import InMemoryStorage
 
@@ -135,6 +136,7 @@ def test_in_memory_storage_roundtrip() -> None:
     assert consumed is not None
     assert consumed.consumed_at is not None
     assert storage.get_token(record.token_hash) is None
+    assert storage.consume_token("missing") is None
 
     rule = RateLimitRule(identifier="user@example.com", window_seconds=60, max_requests=2)
     assert storage.enforce_rate_limit(rule, at=_utcnow())
@@ -151,10 +153,14 @@ def test_sqlalchemy_storage_roundtrip(sqlite_storage: SQLAlchemyStorage) -> None
     consumed = sqlite_storage.consume_token(record.token_hash)
     assert consumed is not None
     assert consumed.consumed_at is not None
+    assert sqlite_storage.consume_token(record.token_hash) is None
+    assert sqlite_storage.get_token("missing") is None
+    assert sqlite_storage.consume_token("missing") is None
 
     rule = RateLimitRule(identifier="id", window_seconds=60, max_requests=1)
     assert sqlite_storage.enforce_rate_limit(rule, at=_utcnow())
     assert not sqlite_storage.enforce_rate_limit(rule, at=_utcnow())
+    assert sqlite_storage.enforce_rate_limit(rule, at=_utcnow() + timedelta(seconds=120))
 
 
 def test_redis_storage_roundtrip(redis_storage: RedisStorage) -> None:
@@ -170,3 +176,17 @@ def test_redis_storage_roundtrip(redis_storage: RedisStorage) -> None:
     rule = RateLimitRule(identifier="id", window_seconds=60, max_requests=1)
     assert redis_storage.enforce_rate_limit(rule, at=_utcnow())
     assert not redis_storage.enforce_rate_limit(rule, at=_utcnow())
+    redis_storage._client._counters.clear()  # type: ignore[attr-defined]
+    assert redis_storage.enforce_rate_limit(rule, at=_utcnow() + timedelta(seconds=70))
+
+
+def test_redis_storage_missing_token(redis_storage: RedisStorage) -> None:
+    assert redis_storage.get_token("missing") is None
+    assert redis_storage.consume_token("missing") is None
+
+
+def test_redis_storage_malformed_data(redis_storage: RedisStorage) -> None:
+    key = redis_storage._token_key("bad")  # type: ignore[attr-defined]
+    redis_storage._client._hashes[key] = {b"token_hash": b"bad"}  # type: ignore[attr-defined]
+    with pytest.raises(StorageError):
+        redis_storage.get_token("bad")

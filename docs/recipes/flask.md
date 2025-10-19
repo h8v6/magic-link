@@ -85,7 +85,7 @@ def verify_magic_link():
 
     result = service.verify_token(token)
     if not result.success:
-        return jsonify({"error": result.error}), 400
+        return jsonify({"error": result.reason}), 400
 
     return jsonify({"status": "verified", "subject": result.subject})
 

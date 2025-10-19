@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import sys
 from typing import List
 
 import pytest
 from click.testing import CliRunner
 
-from magic_link.cli import cli
+from magic_link.cli import cli, main
 from magic_link.config import MagicLinkConfig, RateLimitConfig, SMTPConfig, TokenConfig
 
 
@@ -83,3 +84,11 @@ def test_test_email_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     result = runner.invoke(cli, ["test-email", "user@example.com"])
     assert result.exit_code != 0
     assert "boom" in result.output
+
+
+def test_cli_main_invokes_group(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MAGIC_LINK_SECRET_KEY", "cli-secret")
+    monkeypatch.setattr(sys, "argv", ["magic-link", "--help"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 0

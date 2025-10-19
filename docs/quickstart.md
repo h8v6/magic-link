@@ -47,6 +47,8 @@ Generate an Alembic revision that includes `magic_link` tables and apply it like
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
+from redis import Redis
+
 from magic_link import MagicLinkConfig, MagicLinkService
 from magic_link.interfaces import MagicLinkMessage
 from magic_link.mailer import create_mailer
@@ -54,7 +56,8 @@ from magic_link.storage.redis import RedisStorage
 
 config = MagicLinkConfig.from_env()
 app = FastAPI()
-storage = RedisStorage.from_url("redis://localhost:6379/0")  # create helper in your app
+redis_client = Redis.from_url("redis://localhost:6379/0")
+storage = RedisStorage(redis_client)
 service = MagicLinkService(config=config, storage=storage)
 mailer = create_mailer(config)
 
@@ -89,7 +92,7 @@ async def verify_magic_link(payload: dict[str, str]) -> JSONResponse:
 
     result = service.verify_token(token)
     if not result.success:
-        raise HTTPException(status_code=400, detail=result.error or "Invalid token")
+        raise HTTPException(status_code=400, detail=result.reason or "invalid_token")
 
     return JSONResponse({"status": "verified", "subject": result.subject})
 ```

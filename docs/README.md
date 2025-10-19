@@ -36,6 +36,7 @@ Everything is opt-in by design. The core package ships with almost no third-part
 - Pluggable storage and mailer interfaces so you can integrate with existing infrastructure
 - Sensible defaults with explicit configuration via environment variables
 - Developer-friendly CLI utilities for configuration scaffolding and delivery testing
+- Extensive documentation including quickstarts, framework recipes, and advanced guides (email customization, migrations, security)
 
 ## Installation
 
@@ -104,7 +105,7 @@ async def verify_magic_link(request: Request) -> JSONResponse:
 
     result = service.verify_token(token)
     if not result.success:
-        raise HTTPException(status_code=400, detail=result.error or "Invalid token")
+        raise HTTPException(status_code=400, detail=result.reason or "invalid_token")
 
     return JSONResponse({"status": "verified", "subject": result.subject})
 ```
