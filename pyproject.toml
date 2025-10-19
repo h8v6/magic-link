@@ -12,6 +12,7 @@ license = { text = "MIT" }
 authors = [
   { name = "magic-link maintainers" }
 ]
+keywords = ["authentication", "magic-link", "security", "passwordless", "python"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.8",
@@ -52,8 +53,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://example.com/magic-link"
-Repository = "https://example.com/magic-link"
+Homepage = "https://github.com/h8v6/magic-link"
+Documentation = "https://github.com/h8v6/magic-link/tree/main/docs"
+Repository = "https://github.com/h8v6/magic-link"
+Issues = "https://github.com/h8v6/magic-link/issues"
 
 [project.scripts]
 "magic-link" = "magic_link.cli:main"
